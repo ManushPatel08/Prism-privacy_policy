@@ -285,6 +285,6 @@ would say so plainly before it shipped.
 
 Questions, corrections, or anything in this policy that does not match what you observe:
 
-**Manush Patel**
-Department of Computer Science, Stony Brook University
-manushsachin.patel@stonybrook.edu
+**Manush Patel**<br>
+Department of Computer Science, Stony Brook University<br>
+[manushsachin.patel@stonybrook.edu](mailto:manushsachin.patel@stonybrook.edu)
