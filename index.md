@@ -1,8 +1,8 @@
 # PRISM — Privacy Policy
 
 **Applies to:** PRISM — contextual gesture shortcuts (demonstrator), extension version 1.1.0
-**Last updated:** 5 November 2026
-**Effective date:** 2026-11-05
+**Last updated:** 17 November 2026
+**Effective date:** 2026-11-17
 
 ---
 
@@ -258,6 +258,11 @@ back.
 times a request goes out because of PRISM, and each happens only when you deliberately draw that
 gesture.** Save image's download (§3) is likewise a request for a file you chose, made by the
 browser as any download is.
+
+Likewise, the options page has one ordinary link, **Rate or review PRISM on the Chrome Web Store**,
+which opens PRISM's own page on the Chrome Web Store
+(`https://chromewebstore.google.com/detail/dffefhigobgkdlfhgcogefngbkffkphn/reviews`) in a new tab
+only when you click it; the extension sends nothing and records nothing about it.
 
 ---
 
