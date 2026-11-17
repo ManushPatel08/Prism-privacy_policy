@@ -1,8 +1,8 @@
 # PRISM — Privacy Policy
 
-**Applies to:** PRISM — contextual gesture shortcuts (demonstrator), extension version 0.1.0
-**Last updated:** 23 September 2026
-**Effective date:** 2026-09-23
+**Applies to:** PRISM — contextual gesture shortcuts (demonstrator), extension version 1.1.0
+**Last updated:** 5 November 2026
+**Effective date:** 2026-11-05
 
 ---
 
@@ -31,7 +31,8 @@ against the extension's source code rather than written from memory.
   already loaded it from, so that the picture itself can be put on your clipboard (§5). No cookies
   are sent with that request, and the bytes go only to your local clipboard.
 - **No personal data is collected, transmitted, sold or shared.** None is collected at all.
-- The **only** thing it stores is the **custom gesture bindings you create yourself**, in
+- The **only** things it stores are the **custom gestures you create yourself** and **your settings**
+  (trackpad mode, sensitivity, and the list of sites where you turned PRISM off), in
   `chrome.storage.local` on your own machine.
 - Three things leave the page, and only because you asked for them with a gesture: **clipboard
   copies** (§5), **Save image**, which saves the picture you gestured on to your Downloads folder
@@ -45,21 +46,23 @@ against the extension's source code rather than written from memory.
 | | |
 |---|---|
 | Where | `chrome.storage.local` — local to this browser profile on this computer |
-| Key | exactly one: `prism.custom-bindings` |
-| What is in it | the custom gestures you recorded on the extension's options page |
+| Keys | exactly two: `prism.custom-bindings` and `prism.settings` |
+| What is in `prism.custom-bindings` | the custom gestures you recorded on the extension's options page |
+| What is in `prism.settings` | three settings you choose on the options page: whether **trackpad mode** is on, the **sensitivity** (standard or larger movements), and the **list of website names** (e.g. `example.com`) where you turned PRISM off |
 | Per binding | the context (`page`, `link`, `image` or `selection`), the direction tokens (e.g. `U,L`), the id and label of the command it runs, and the time it was created |
 | Written by | the options page, when you save a gesture |
 | Read by | the content script, once per page load, so a saved gesture works after a browser restart |
 
-No page content, no URLs, no page titles, no timing data and no identifiers are stored — the options
-page has no free-text field to type any into; its only inputs are two drop-down lists and a pad you
-draw on.
+No page content, no page addresses, no page titles, no timing data and no identifiers are stored. The
+one free-text field on the options page is the list of sites where PRISM should stay off; it accepts
+website names only, and it holds exactly what you type into it. PRISM never adds a site to it by
+itself and never records which sites you visit.
 
 `chrome.storage.sync` is **not** used, so nothing is uploaded to your Google account. The extension
 also uses no `localStorage`, no `sessionStorage`, no IndexedDB and no cookies.
 
-Deleting a binding on the options page removes it. Uninstalling the extension removes the key and
-everything in it.
+Deleting a binding or a site on the options page removes it. Uninstalling the extension removes both
+keys and everything in them.
 
 ---
 
@@ -77,8 +80,9 @@ only bookmarks API it calls, and without this permission that one command cannot
 
 ### `storage`
 
-Spent by **two calls**, a `get` and a `set` on `chrome.storage.local`, both in `bindings.js`, both
-against the single key described in §2. A custom gesture has to survive a browser restart; a content
+Spent by `get` and `set` calls on `chrome.storage.local` against the two keys described in §2, in
+`bindings.js` (your gestures) and `settings.js` (your settings), plus listening for changes so a new
+setting applies without reloading the page. A custom gesture has to survive a browser restart; a content
 script's `localStorage` belongs to the website you are visiting, so it is per-site, cleared with site
 data, and invisible to the options page. `chrome.storage.local` is the only store the options page
 and the content script can share.
@@ -98,6 +102,22 @@ To report truthfully whether the file actually finished, the worker also looks u
 download's** state (`chrome.downloads.search` by its id, and `onChanged` filtered to that id). It
 never lists, reads, opens, deletes or otherwise touches any other entry in your download history.
 
+### `sessions`
+
+Spent by **one call**: `chrome.sessions.restore()`, with no argument, in `background.js`. It is
+reachable only by drawing **`D`, `L` on a page**, the "Reopen closed tab" command, and it reopens the
+tab or window you closed most recently, exactly like Chrome's own Ctrl+Shift+T. The extension never
+lists, reads or searches your recently closed tabs or the tabs on your other devices.
+
+### `scripting`
+
+Spent by **one call**: `chrome.scripting.executeScript` with **the extension's own content script
+file** (`extension/content.js`, the same file the manifest already runs on every web page). It runs
+only when the extension is **installed or updated**, so that tabs you already had open get the
+gestures without being reloaded. To find those tabs, the worker asks Chrome once for the open
+`http://` and `https://` tabs; it uses the answer only to address the injection and keeps nothing.
+It never injects any other code, never passes it page data, and never reads anything back.
+
 ### Host access: `http://*/*` and `https://*/*`
 
 Spent by **one command**: **Copy image**, the **`L` gesture on an image** (§5). A web page is not
@@ -111,11 +131,13 @@ described separately in §4.
 
 ### Nothing else is requested
 
-There is no `tabs`, `cookies`, `history`, `identity`, `management`, `webRequest`, `scripting`,
+There is no `tabs`, `cookies`, `history`, `identity`, `management`, `webRequest`,
 `clipboardRead` or `clipboardWrite` permission.
 
-The extension does open, close and create tabs and windows, but those APIs are ungated and buy no
-access to your data: the tab it closes is the one the gesture came from, identified by the message
+The extension does open, close and create tabs and windows (including an **incognito window**, when
+you draw "New incognito window" or "Open in incognito window"), and it moves a tab back or forward in
+its history when you gesture inside an embedded frame. Those APIs are ungated and buy no access to
+your data: the tab it closes is the one the gesture came from, identified by the message
 sender, and when it reads the geometry of your current window in order to size a new one, it does so
 without `populate`, so no tab list, URL or title is returned to it.
 
@@ -131,29 +153,50 @@ Web Store or the new tab page, and it checks the page's scheme itself before sta
 
 **What it does on a page you visit:**
 
-- adds a stylesheet link for its own on-screen guide;
-- adds pointer listeners (`pointerdown`, `pointermove`, `pointerup`) to the document;
-- reads your saved bindings from `chrome.storage.local` once, on load;
+- adds one invisible container element for its own on-screen guide, with the guide's styles kept
+  inside it;
+- adds pointer listeners (`pointerdown`, `pointermove`, `pointerup`) to the window, and, in
+  trackpad mode, listeners that stop an Alt-drag from selecting text or following a link;
+- reads your saved bindings and settings from `chrome.storage.local` on load, and again if you change
+  them; on a site you listed, it stops there and does nothing else;
 - **at the moment a right-drag begins**, looks at the element under the pointer — its tag name, a
   link's `href`, an image's `src` — and the current text selection, purely to decide which of the
-  four contexts applies and which command a stroke would run;
+  four contexts applies and which command a stroke would run. If you gesture on **text you selected
+  inside a text box**, it reads that selected part of the box once, for the Copy, Define and Search
+  commands. It **never reads a password field**, never reads the unselected text in a box, and never
+  reads any field you are not gesturing on;
 - draws its guide overlay while you hold the button down;
 - prints one line to the page's developer console, and sends one message to **its own background
   service worker** containing the page URL, which the worker prints to the extension's own console
   log. That message is local to your browser; it is not stored and it is not sent anywhere;
 - for the commands that need a privileged API (open link in a background tab, open link in a new
-  window, bookmark link, new tab, close tab, save image, copy image), sends the link's URL and title,
+  window, open link in an incognito window, bookmark link, new tab, new incognito window, close tab,
+reopen closed tab, save image, copy image), sends the link's URL and title,
   or the image's address and a file name, to **its own service worker** over Chrome's internal
   messaging so the worker can perform the action. The messaging is in-browser, not a network
   request; what the worker then does for Save image and Copy image is described in §3 and §5.
 
+It also runs inside **embedded frames** on a page (for example an embedded video or editor), so that
+gestures work there too; it waits until a frame is at least 200 × 150 pixels, so small advertising
+frames are left alone. In every frame it does exactly what is listed above and nothing more.
+
 **What it does not do:** it does not read or index page text beyond the selection you have made
-yourself; it does not read form fields, passwords, cookies, `localStorage` or site data; it does not
+yourself; it does not read form fields (beyond the selected text described above), passwords, cookies, `localStorage` or site data; it does not
 scrape, copy or store page content; it does not record your browsing history; it does not capture
-keystrokes; it does not modify the page apart from adding its own overlay and stylesheet; and it
+keystrokes; it does not modify the page apart from adding its own overlay; and it
 writes **nothing** about any page you visit to disk. Nothing it reads is retained after the gesture
-ends. It also installs no `contextmenu` handler and calls `preventDefault()` nowhere, so a short
-right-click still opens the website's own menu exactly as that site intended.
+ends.
+
+While a gesture is in progress, it also makes the page's embedded frames (ads, videos, embeds)
+briefly ignore the mouse, so a gesture that passes over one isn't lost; each frame's original setting
+is restored exactly the moment the gesture ends (and after 10 seconds at most, whatever happens).
+
+Beyond that, it changes the page's normal behaviour in exactly two situations, both only during a
+gesture you are drawing. **(1)** After a right-drag that moved more than 10 pixels, it stops the right-click menu
+that would otherwise pop up at the end of the gesture; a short right-click (10 pixels or less) still
+opens the website's own menu exactly as that site intended. **(2)** In trackpad mode, during an
+Alt-drag that moved more than 10 pixels, it stops text selection, link dragging and the click at the
+end, so the gesture doesn't also follow the link; a short Alt+click works as normal.
 
 ---
 
@@ -247,10 +290,12 @@ browser as any download is.
   `sessionStorage` / `indexedDB` / `document.cookie`, and analytics or telemetry names, and found
   **0 hits in every category**. The extension's own files are searched for the same primitives —
   `fetch`, `XMLHttpRequest`, `sendBeacon`, `WebSocket`, `EventSource`, `importScripts`, and the
-  common analytics names — by an automated source audit that is part of the project's checks. The
-  **one** permitted match is Copy image's `fetch` in `background.js` (§5); the audit allows it only
-  in that file, only inside that handler, and only once, and fails on any other `fetch` anywhere in
-  the extension.
+  common analytics names — by an automated source audit that is part of the project's checks. Two
+  matches are permitted. One is Copy image's `fetch` in `background.js` (§5): the audit allows it only
+  in that file, only inside that handler, and only once. The other is the content script reading the
+  guide's own stylesheet **from inside the extension package** (a `chrome-extension://` address, which
+  never leaves your computer): it is allowed only in `content.js` and only for an address built by
+  `chrome.runtime.getURL`. The audit fails on any other `fetch` anywhere in the extension.
 - **A DevTools network capture of a full session** in a throwaway Chrome profile, taken on
   22 September 2026, recorded **20 requests, every one to `http://localhost:8080`, none external**.
 - **Scope note, stated rather than glossed over:** that capture was taken with `--disable-extensions`
