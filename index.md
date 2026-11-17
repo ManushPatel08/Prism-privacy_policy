@@ -1,6 +1,6 @@
 # PRISM — Privacy Policy
 
-**Applies to:** PRISM — contextual gesture shortcuts (demonstrator), extension version 1.1.0
+**Applies to:** PRISM — contextual gesture shortcuts (demonstrator), extension version 1.1.1
 **Last updated:** 17 November 2026
 **Effective date:** 2026-11-17
 
